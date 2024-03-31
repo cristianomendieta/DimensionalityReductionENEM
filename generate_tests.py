@@ -166,7 +166,6 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
             print(f"Method: {method} - n_components: {n}")
             # dr is short for dimensionality reduction
             pipeline_dr = generate_pipeline(method, n)
-            pipeline_without_dr = generate_pipeline('nan')
 
             start_time = time.time()
             
@@ -177,11 +176,12 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
 
             print(f"Execution time: {execution_time} seconds")
 
+            pipeline_without_dr = generate_pipeline('nan')
             X_train_transformed = pipeline_without_dr.fit_transform(X_train)
 
             reduction_method_mse = None
+            X_restored = None
             if method != 'tsne':
-
                 X_restored = pipeline_dr.named_steps['reduction_method'].inverse_transform(X_train_transformed_dr)
 
                 reduction_method_mse = mean_squared_error(X_train_transformed, X_restored)

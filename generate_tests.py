@@ -11,6 +11,7 @@ from umap import UMAP
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from sklearn.metrics import mean_squared_error
+import pacmap
 
 
 NUMERIC_COLS = [
@@ -143,6 +144,11 @@ def generate_pipeline(method, n_components=None):
                 ("reduction_method", UMAP(n_components=n_components)),
             ]
         )
+    elif method == 'pacmap':
+        return Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('reduction_method', pacmap.PaCMAP(n_components=n_components, n_neighbors=None, MN_ratio=0.5, FP_ratio=2.0))
+        ])
 
 
 def get_preserved_variance_ratio(X, X_transformed):
@@ -181,12 +187,13 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
 
             reduction_method_mse = None
             X_restored = None
-            if method != 'tsne':
-                X_restored = pipeline_dr.named_steps['reduction_method'].inverse_transform(X_train_transformed_dr)
+            #if method != 'tsne':
+                #X_restored = pipeline_dr.named_steps['reduction_method'].inverse_transform(X_train_transformed_dr)
 
-                reduction_method_mse = mean_squared_error(X_train_transformed, X_restored)
+                #reduction_method_mse = mean_squared_error(X_train_transformed, X_restored)
 
-            preserved_variance_ratio = get_preserved_variance_ratio(X_train_transformed, X_train_transformed_dr)
+            #preserved_variance_ratio = get_preserved_variance_ratio(X_train_transformed, X_train_transformed_dr)
+            preserved_variance_ratio = None
         
             # save X_train_transformed_dr as parquet
             X_train_transformed_dr_df = pd.DataFrame(X_train_transformed_dr)
@@ -215,8 +222,8 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
   
 if __name__ == '__main__':
     X_train = pd.read_parquet('./use_data/X_train.parquet')
-    list_linear_methods = ['tsne']
+    list_linear_methods = ['pacmap']
     n_components_list = [2, 3]
     results_df = get_dimension_reduction_results(list_linear_methods, n_components_list, X_train)
-    results_df.to_parquet('./results/linear_metrics.parquet')
+    results_df.to_parquet('./results/pacmap_metrics.parquet')
 

@@ -19,13 +19,12 @@ TX_GABARITO_CH             982663 - DESCARTA
 TX_GABARITO_LC             982663 - DESCARTA
 TX_GABARITO_MT            1120710 - DESCARTA
 
+
+NU_NOTA_MT                1120710 - ZERA
 NU_NOTA_CN                1120710 - ZERA
+
 NU_NOTA_CH                 982663 - ZERA
 NU_NOTA_LC                 982663 - ZERA
-NU_NOTA_MT                1120710 -ZERA
-
-
-
 TP_STATUS_REDACAO          982663 - NÃO COMPARECEU(SETAR 0)
 NU_NOTA_COMP1              982663 - 0
 NU_NOTA_COMP2              982663 - 0

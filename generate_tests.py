@@ -216,7 +216,7 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
 if __name__ == '__main__':
     X_train = pd.read_parquet('./use_data/X_train.parquet')
     list_linear_methods = ['tsne']
-    n_components_list = [2, 3]
+    n_components_list = [3]
     results_df = get_dimension_reduction_results(list_linear_methods, n_components_list, X_train)
-    results_df.to_parquet('./results/linear_metrics.parquet')
+    results_df.to_parquet('./results/non_linear_metrics.parquet')
 

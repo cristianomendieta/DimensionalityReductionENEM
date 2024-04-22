@@ -12,6 +12,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 from sklearn.metrics import mean_squared_error
 import pacmap
+from sklearn.metrics.pairwise import euclidean_distances
 
 
 NUMERIC_COLS = [
@@ -39,8 +40,7 @@ NUMERIC_COLS = [
     "NU_NOTA_COMP2",
     "NU_NOTA_COMP3",
     "NU_NOTA_COMP4",
-    "NU_NOTA_COMP5",
-    "Q005",
+    "NU_NOTA_COMP5"
 ]
 
 CATEGORICAL_COLS = [
@@ -81,7 +81,6 @@ def generate_pipeline(method, n_components=None):
 
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, NUMERIC_COLS),
             ("cat", categorical_transformer, CATEGORICAL_COLS),
         ]
     )
@@ -163,8 +162,18 @@ def get_preserved_variance_ratio(X, X_transformed):
 
     return preserved_variance_ratio
 
+def get_preserved_proximity(X, X_transformed):
+    # Calcular as distâncias euclidianas nos espaços original e reduzido
+    dist_original = euclidean_distances(X)
+    dist_tsne = euclidean_distances(X_transformed)
 
-def get_dimension_reduction_results(list_methods, n_components_list, X_train):
+    # Calcular a preservação da estrutura de proximidade
+    preservation = np.abs(dist_original - dist_tsne).mean()
+
+    return preservation
+
+
+def get_linear_methods_results(list_methods, n_components_list, X_train):
     results = []
 
     for method in list_methods:
@@ -172,6 +181,7 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
             print(f"Method: {method} - n_components: {n}")
             # dr is short for dimensionality reduction
             pipeline_dr = generate_pipeline(method, n)
+            pipeline_without_dr = generate_pipeline('nan')
 
             start_time = time.time()
             
@@ -182,34 +192,25 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
 
             print(f"Execution time: {execution_time} seconds")
 
-            pipeline_without_dr = generate_pipeline('nan')
             X_train_transformed = pipeline_without_dr.fit_transform(X_train)
 
-            reduction_method_mse = None
-            X_restored = None
-            #if method != 'tsne':
-                #X_restored = pipeline_dr.named_steps['reduction_method'].inverse_transform(X_train_transformed_dr)
+            X_restored = pipeline_dr.named_steps['reduction_method'].inverse_transform(X_train_transformed_dr)
 
-                #reduction_method_mse = mean_squared_error(X_train_transformed, X_restored)
+            reduction_method_mse = mean_squared_error(X_train_transformed, X_restored)
 
-            #preserved_variance_ratio = get_preserved_variance_ratio(X_train_transformed, X_train_transformed_dr)
-            preserved_variance_ratio = None
-        
             # save X_train_transformed_dr as parquet
             X_train_transformed_dr_df = pd.DataFrame(X_train_transformed_dr)
-            X_train_transformed_dr_df.to_parquet(f'./results/X_train_transformed_dr_{method}_{n}.parquet')
+            X_train_transformed_dr_df.to_parquet(f'./results/linear/{method}_{n}.parquet')
 
             results.append({
                 'Method': method,
                 'n_components': n,
-                'Preserved Variance Ratio': preserved_variance_ratio,
                 'MSE': reduction_method_mse,
                 'time': execution_time
             })
 
             del pipeline_dr
             del pipeline_without_dr
-            del X_train_transformed_dr_df
             del X_train_transformed_dr
             del X_train_transformed
             del X_restored
@@ -219,11 +220,57 @@ def get_dimension_reduction_results(list_methods, n_components_list, X_train):
     results_df = pd.DataFrame(results)
 
     return results_df
+
+def get_non_linear_methods_results(list_methods, n_components_list, X_train):
+    results = []
+
+    for method in list_methods:
+        for n in n_components_list:
+            print(f"Method: {method} - n_components: {n}")
+            # dr is short for dimensionality reduction
+            pipeline_dr = generate_pipeline(method, n)
+            pipeline_without_dr = generate_pipeline('nan')
+
+            start_time = time.time()
+            
+            X_train_transformed_dr = pipeline_dr.fit_transform(X_train)
+
+            end_time = time.time()
+            execution_time = end_time - start_time
+
+            print(f"Execution time: {execution_time} seconds")
+
+            X_train_transformed = pipeline_without_dr.fit_transform(X_train)
+
+            # save X_train_transformed_dr as parquet
+            X_train_transformed_dr_df = pd.DataFrame(X_train_transformed_dr)
+            X_train_transformed_dr_df.to_parquet(f'./results/non-linear/{method}_{n}.parquet')
+            
+            preservation = get_preserved_proximity(X_train_transformed, X_train_transformed_dr)
+
+            results.append({
+                'Method': method,
+                'n_components': n,
+                'preserved_proximity': preservation,
+                'time': execution_time
+            })
+
+            del pipeline_dr
+            del pipeline_without_dr
+            del X_train_transformed_dr
+            del X_train_transformed
+
+            gc.collect()
+
+    # Convertendo a lista de dicionários em um DataFrame
+    results_df = pd.DataFrame(results)
+
+    return results_df
   
 if __name__ == '__main__':
-    X_train = pd.read_parquet('./use_data/X_train.parquet')
-    list_linear_methods = ['pacmap']
-    n_components_list = [2, 3]
-    results_df = get_dimension_reduction_results(list_linear_methods, n_components_list, X_train)
-    results_df.to_parquet('./results/pacmap_metrics.parquet')
+    X_train = pd.read_parquet('/home/cristiano/ufpr/tcc/train_data/binaria/X_train.parquet')
+    list_linear_methods = ["pca", "svd", "ica"]
+    n_components_list = [2, 3, 5, 10, 20, 30]
+    results_df = get_linear_methods_results(list_linear_methods, n_components_list, X_train)
+    results_df.to_parquet('./results/linear/results.parquet')
 

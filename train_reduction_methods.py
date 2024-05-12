@@ -2,6 +2,7 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 import numpy as np
 from sklearn.metrics import f1_score, accuracy_score
+from sklearn.preprocessing import TargetEncoder
 
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
 import pandas as pd
@@ -79,16 +80,18 @@ CATEGORICAL_COLS = [
     "NO_MUNICIPIO_PROVA",
     "TP_STATUS_REDACAO",
     "SG_UF_PROVA",
+    "faixa_renda_familiar"
 ]
 
 
 def generate_pipeline(method, n_components=None):
     numeric_transformer = Pipeline(steps=[("scaler", MinMaxScaler())])
 
-    categorical_transformer = Pipeline(steps=[("encoder", OrdinalEncoder())])
+    categorical_transformer = Pipeline(steps=[("encoder", TargetEncoder(smooth="auto"))])
 
     preprocessor = ColumnTransformer(
         transformers=[
+            ("num", numeric_transformer, NUMERIC_COLS)
             ("cat", categorical_transformer, CATEGORICAL_COLS),
         ]
     )
@@ -139,7 +142,7 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
     model = XGBClassifier(silent=False, 
-                      scale_pos_weight=1,
+                      scale_pos_weight=5,
                       n_estimators=400)
 
     k_folds = 5

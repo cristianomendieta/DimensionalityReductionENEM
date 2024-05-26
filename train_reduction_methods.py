@@ -90,7 +90,7 @@ def generate_pipeline(method, n_components=None):
 
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, NUMERIC_COLS),
+            #("num", numeric_transformer, NUMERIC_COLS),
             ("cat", categorical_transformer, CATEGORICAL_COLS),
         ]
     )
@@ -153,6 +153,9 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
             print(f"Reduction method: {reduction_method} - n_components: {n}")
             pipe = generate_pipeline(reduction_method, n)
 
+            X_train = X_train.to_numpy()
+            X_test = X_test.to_numpy()
+
             X_train_method = pipe.fit_transform(X_train, y_train)
             X_test_transformed = pipe.transform(X_test)
             print("saiu")
@@ -203,11 +206,10 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
 if __name__ == '__main__':
     reduction_method_list = ['pacmap']
     n_components_list = [2, 3]
-    src_path = "./data-results/no-linear-binaria/"
+    src_path = "../tcc-results/data-results/no-linear-binaria/"
     
-    data_enem_binary_classifier = pd.read_parquet("./data-results/data_prepared_enem_2022.parquet")
+    data_enem_binary_classifier = pd.read_parquet("../tcc-results/data-results/data_prepared_enem_2022.parquet")
     data_enem_binary_classifier = data_enem_binary_classifier.loc[data_enem_binary_classifier["TP_ESCOLA"] != 1]
-	
     print(data_enem_binary_classifier.shape)
 
     X = data_enem_binary_classifier.drop('TP_ESCOLA', axis=1)

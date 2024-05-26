@@ -22,7 +22,6 @@ NUMERIC_COLS = [
     "TP_NACIONALIDADE",
     "TP_ST_CONCLUSAO",
     "TP_ANO_CONCLUIU",
-    "TP_ESCOLA",
     "IN_TREINEIRO",
     "CO_MUNICIPIO_PROVA",
     "CO_UF_PROVA",
@@ -71,6 +70,7 @@ CATEGORICAL_COLS = [
     "NO_MUNICIPIO_PROVA",
     "TP_STATUS_REDACAO",
     "SG_UF_PROVA",
+    "faixa_renda_familiar"
 ]
 
 
@@ -268,9 +268,9 @@ def get_non_linear_methods_results(list_methods, n_components_list, X_train):
     return results_df
   
 if __name__ == '__main__':
-    X_train = pd.read_parquet('/home/cristiano/ufpr/tcc/train_data/binaria/X_train.parquet')
+    X_train = pd.read_parquet('./train_data/binaria/X_train.parquet')
     list_linear_methods = ["pca", "svd", "ica"]
-    n_components_list = [2, 3, 5, 10, 20, 30]
+    n_components_list = [2, 3, 5, 10, 20]
     results_df = get_linear_methods_results(list_linear_methods, n_components_list, X_train)
     results_df.to_parquet('./results/linear/results.parquet')
 

@@ -31,7 +31,6 @@ NUMERIC_COLS = [
     "TP_NACIONALIDADE",
     "TP_ST_CONCLUSAO",
     "TP_ANO_CONCLUIU",
-    "TP_ESCOLA",
     "IN_TREINEIRO",
     "CO_MUNICIPIO_PROVA",
     "CO_UF_PROVA",
@@ -91,7 +90,7 @@ def generate_pipeline(method, n_components=None):
 
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, NUMERIC_COLS)
+            ("num", numeric_transformer, NUMERIC_COLS),
             ("cat", categorical_transformer, CATEGORICAL_COLS),
         ]
     )
@@ -141,9 +140,7 @@ def generate_pipeline(method, n_components=None):
 def train_models(reduction_method_list, n_components_list, src_path, X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    model = XGBClassifier(silent=False, 
-                      scale_pos_weight=5,
-                      n_estimators=400)
+    model = XGBClassifier(n_estimators=400)
 
     k_folds = 5
 
@@ -154,12 +151,11 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
         for n in n_components_list:
             results = {}
             print(f"Reduction method: {reduction_method} - n_components: {n}")
-            
             pipe = generate_pipeline(reduction_method, n)
-            
-            X_train_method = pipe.fit_transform(X_train)
+
+            X_train_method = pipe.fit_transform(X_train, y_train)
             X_test_transformed = pipe.transform(X_test)
-        
+            print("saiu")
             kf = KFold(n_splits=k_folds, shuffle=True)
             cv_results = cross_val_score(model, X_train_method, y_train, cv=kf)
             
@@ -196,23 +192,23 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
             results['Training Time'] = training_time
             
             results_list.append(results)
-            break
-        break
             
     # Criando DataFrame a partir da lista de resultados
     df_linear_results = pd.DataFrame(results_list)
 
     # save results
-    df_linear_results.to_parquet(f'{src_path}/linear_results.parquet')
+    df_linear_results.to_parquet(f'{src_path}/no-linear.parquet')
     
     
 if __name__ == '__main__':
-    reduction_method_list = ['pca', 'svd', 'ica']
-    n_components_list = [2, 3, 5, 10, 20]
-    src_path = "/home/cristiano/ufpr/data_train/binaria/"
+    reduction_method_list = ['pacmap']
+    n_components_list = [2, 3]
+    src_path = "./data-results/no-linear-binaria/"
     
-    data_enem_binary_classifier = pd.read_parquet("/home/cristiano/ufpr/tcc/data/data_prepared_enem_2022.parquet")
+    data_enem_binary_classifier = pd.read_parquet("./data-results/data_prepared_enem_2022.parquet")
     data_enem_binary_classifier = data_enem_binary_classifier.loc[data_enem_binary_classifier["TP_ESCOLA"] != 1]
+	
+    print(data_enem_binary_classifier.shape)
 
     X = data_enem_binary_classifier.drop('TP_ESCOLA', axis=1)
     y = data_enem_binary_classifier['TP_ESCOLA']

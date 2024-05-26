@@ -18,7 +18,7 @@ import numpy as np
 
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA, TruncatedSVD, FastICA
-from sklearn.manifold import TSNE
+from openTSNE import TSNE
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 import pacmap
@@ -135,16 +135,9 @@ def generate_pipeline(method, n_components=None):
         return Pipeline(
             steps=[
                 ("preprocessor", preprocessor),
-                ("pre_tsne", PCA(n_components=5)),
                 ("reduction_method", TSNE(n_components=n_components)),
             ]
         )
-    elif method == 'pacmap':
-        return Pipeline(steps=[
-            ('preprocessor', preprocessor),
-            ('to_numpy', DataFrameToNumpyTransformer()),
-            ('reduction_method', pacmap.PaCMAP(n_components=n_components, n_neighbors=None, MN_ratio=0.5, FP_ratio=2.0))
-        ])
 
 
 def train_models(reduction_method_list, n_components_list, src_path, X, y):
@@ -161,10 +154,16 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
         for n in n_components_list:
             results = {}
             print(f"Reduction method: {reduction_method} - n_components: {n}")
-            pipe = generate_pipeline(reduction_method, n)
-
-            X_train_method = pipe.fit_transform(X_train, y_train)
-            X_test_transformed = pipe.transform(X_test)
+            
+            preprocesor_pipe = generate_pipeline("nan")
+            tsne_pipe = generate_pipeline("tsne", n)
+            
+            X_train_preprocessed = preprocesor_pipe.fit_transform(X_train, y_train)
+            X_train_method = tsne_pipe.fit(X_train_preprocessed)
+            
+            X_test_preprocessed = preprocesor_pipe.transform(X_test)
+            X_test_transformed = tsne_pipe.transform(X_test_preprocessed)
+            
             print("saiu")
             kf = KFold(n_splits=k_folds, shuffle=True)
             cv_results = cross_val_score(model, X_train_method, y_train, cv=kf)
@@ -211,7 +210,7 @@ def train_models(reduction_method_list, n_components_list, src_path, X, y):
     
     
 if __name__ == '__main__':
-    reduction_method_list = ['pacmap']
+    reduction_method_list = ['tsne']
     n_components_list = [2, 3]
     src_path = "../tcc-results/data-results/no-linear-binaria/"
     

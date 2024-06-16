@@ -3,7 +3,8 @@ import time
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
+import pacmap
 from xgboost import XGBClassifier
 
 from sklearn.preprocessing import TargetEncoder, LabelEncoder, MinMaxScaler, OrdinalEncoder
@@ -12,6 +13,8 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split, KFold, cross_val_score
 from sklearn.decomposition import PCA, TruncatedSVD, FastICA
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
 
 
 NUMERIC_COLS = [
@@ -150,10 +153,15 @@ def prepare_data(data_path: str, target_type: str, target_col: str):
     return X, y
 
 
-def train_models(X, y, objective, num_classes, reduction_methods, n_components, average_type):
+def train_models(X, y, reduction_methods, n_components, average_type, experiment, objective=None, num_classes=None):
+    os.makedirs('./results/models', exist_ok=True)
+    os.makedirs('./results/metrics/mc', exist_ok=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    model = XGBClassifier(n_estimators=400, n_jobs=-1)
+    if objective and num_classes:
+        model = XGBClassifier(n_estimators=400, objective = objective, num_class = num_classes, eval_metric='logloss', n_jobs=-1)
+    else:
+        model = XGBClassifier(n_estimators=400, eval_metric='logloss', n_jobs=-1)
 
     k_folds = 5
     
@@ -163,12 +171,66 @@ def train_models(X, y, objective, num_classes, reduction_methods, n_components, 
     for method in reduction_methods:
         for component in n_components:
             results = {}
-            print(f"Reduction method: {method} - n_components: {component}")
+            print(f"Reduction method: {method} - n_components: {component}")               
+                
+            if method == "pacmap":
+                pipe = generate_pipeline("baseline")
+                
+                X_train_method_preprocessed = pipe.fit_transform(X_train)                
+                X_test_preprocessed = pipe.transform(X_test)
+                
+                embedding = pacmap.PaCMAP(n_components=component) 
+
+                # fit the data (The index of transformed data corresponds to the index of the original data)
+                X_train_method = embedding.fit_transform(X_train_method_preprocessed)
+                X_test_transformed = embedding.transform(X_test_preprocessed)
             
-            pipe = generate_pipeline(method, component)
-                        
-            X_train_method = pipe.fit_transform(X_train)
-            X_test_transformed = pipe.transform(X_test)
+            elif method == "autoencoder":
+                pipe = generate_pipeline("baseline")
+                
+                X_test_transformed = pipe.transform(X_test)
+
+                # Dimensionalidade dos dados de entrada
+                input_dim = X_train_method.shape[1]
+                # Dimensionalidade do espaço latente (reduzida)
+                encoding_dim = component   # Reduzir para n dimensões
+
+                # Definir o autoencoder com mais camadas
+                input_data = Input(shape=(input_dim,))
+                encoded = Dense(64, activation='relu')(input_data)
+                encoded = Dense(32, activation='relu')(encoded)
+                encoded = Dense(encoding_dim, activation='relu')(encoded)
+                decoded = Dense(32, activation='relu')(encoded)
+                decoded = Dense(64, activation='relu')(decoded)
+                decoded = Dense(input_dim, activation='sigmoid')(decoded)
+
+                # Modelo autoencoder
+                autoencoder = Model(input_data, decoded)
+
+                # Modelo encoder
+                encoder = Model(input_data, encoded)
+
+                # Compilar o modelo
+                autoencoder.compile(optimizer='adam', loss='mean_squared_error')
+
+                # Treinar o modelo
+                autoencoder.fit(X_train_method, X_train_method,
+                                epochs=10,
+                                batch_size=16,
+                                shuffle=True,
+                                validation_data=(X_test_transformed, X_test_transformed))
+
+                # Usar o encoder para reduzir a dimensionalidade dos dados de teste
+                encoded_data = encoder.predict(X_test_transformed)
+                
+                # X_train_method = X_train_method
+                X_test_transformed = encoded_data
+                
+            else:
+                pipe = generate_pipeline(method, component)
+                            
+                X_train_method = pipe.fit_transform(X_train)
+                X_test_transformed = pipe.transform(X_test)
 
             kf = KFold(n_splits=k_folds, shuffle=True)
             cv_results = cross_val_score(model, X_train_method, y_train, cv=kf)
@@ -214,7 +276,6 @@ def train_models(X, y, objective, num_classes, reduction_methods, n_components, 
             
             results_list.append(results)
         
-
             cm = confusion_matrix(y_test, y_predicted)
 
             # Criar o display da matriz de confusão
@@ -222,7 +283,10 @@ def train_models(X, y, objective, num_classes, reduction_methods, n_components, 
             disp.plot(cmap=plt.cm.Blues)
 
             # Salvar a figura em um arquivo
-            plt.savefig(f'./metrics/mc/matriz_de_confusao_{method}_{component}.png')
+            plt.savefig(f'./results/metrics/mc/matriz_de_confusao_{method}_{component}.png')
 
             # Fechar a figura para liberar memória
             plt.close()
+    
+    df_results = pd.DataFrame(results_list)
+    df_results.to_csv(f'./results/metrics/{experiment}.parquet', index=False)

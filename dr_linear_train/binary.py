@@ -7,7 +7,10 @@ from utils import *
 
 if __name__ == "__main__":
     print(os.getcwd())
+    n_components_list = [2, 3, 5, 10, 20]
+    linear_methods = ['pca', 'svd', 'ica']
+    
     X, y = prepare_data("../tcc-results/data-results/data_prepared_enem_2022.parquet", "binary", "TP_ESCOLA")
-    train_models(X, y, "binary:logistic", 2, ["baseline"], [53], "binary")
+    train_models(X, y, linear_methods, n_components_list, "binary", "linear_binary")
     
     

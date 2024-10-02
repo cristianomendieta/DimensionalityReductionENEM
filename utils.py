@@ -113,11 +113,11 @@ def prepare_data(data_path: str, target_type: str, target_col: str):
     
     if target_type == "multiclass":
         map_renda = {
-            "A": ["P", "Q"],
-            "B": ["N", "O"],
-            "C": ["J", "K", "L", "M"],
-            "D": ["E", "F", "G", "H", "I"],
-            "E": ["A", "B", "C"],
+            "A": ["P", "Q"], # 15 A 25 SALÁRIOS
+            "B": ["N", "O"], # 10 A 15 SALÁRIOS
+            "C": ["J", "K", "L", "M"], # 5 A 10 SALÁRIOS
+            "D": ["E", "F", "G", "H", "I"], # 2 A 5 SALÁRIOS
+            "E":  ["A", "B", "C"], # ATÉ 2 SALÁRIOS
         }
         df_microdados[target_col] = df_microdados[target_col].apply(map_values, mapping=map_renda)
         

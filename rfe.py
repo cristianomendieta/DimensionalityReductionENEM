@@ -25,7 +25,7 @@ def plot_feature_importance(feature_names, importance, title):
     plt.savefig(f'./results/metrics/{title.replace(" ", "_").lower()}.png')
     plt.close()
 
-def train_models(X, y, n_features_list, average_type, experiment):
+def train_models(X, y, n_features_list, average_type, experiment, objective=None, num_classes=None):
     os.makedirs('./results/models', exist_ok=True)
     os.makedirs('./results/metrics/mc', exist_ok=True)
     
@@ -40,8 +40,10 @@ def train_models(X, y, n_features_list, average_type, experiment):
     X_train_transformed = pipe.fit_transform(X_train)
     X_test_transformed = pipe.transform(X_test)
     
-    # Initialize an XGBoost model
-    base_model = XGBClassifier(random_state=42, n_estimators=400, eval_metric='logloss', n_jobs=-1)
+    if objective and num_classes:
+        base_model = XGBClassifier(n_estimators=400, objective=objective, num_class=num_classes, eval_metric='logloss', n_jobs=-1)
+    else:
+        base_model = XGBClassifier(n_estimators=400, eval_metric='logloss', n_jobs=-1)
     
     results_list = []
     
@@ -82,7 +84,10 @@ def train_models(X, y, n_features_list, average_type, experiment):
         rfe.fit(X_train_transformed, y_train)
         
         start_time = time.time()
-        model_selected = XGBClassifier(random_state=42, n_estimators=400, eval_metric='logloss', n_jobs=-1)
+        if objective and num_classes:
+            model_selected = XGBClassifier(n_estimators=400, objective=objective, num_class=num_classes, eval_metric='logloss', n_jobs=-1)
+        else:
+            model_selected = XGBClassifier(n_estimators=400, eval_metric='logloss', n_jobs=-1)
         model_selected.fit(X_train_transformed.iloc[:, rfe.support_], y_train)
         selected_features_time = time.time() - start_time
         
